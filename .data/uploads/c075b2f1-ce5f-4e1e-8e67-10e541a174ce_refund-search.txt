@@ -1,0 +1,1 @@
+Refund exceptions require manager approval.

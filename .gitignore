@@ -1,0 +1,14 @@
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Large data directories (Common naming conventions)
+
+datasets/
+models/
+weights/
+*.csv
+*.jsonl
+*.parquet
+*.h5
+*.pt
+*.safetensors
