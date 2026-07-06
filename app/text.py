@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -19,7 +23,58 @@ def normalize_text(text: str) -> str:
     return text.strip()
 
 
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def extract_text(path: Path, content_type: str | None = None) -> str:
+    """Extract text from a file.
+
+    When ``OCR_EXTRACTION_URL`` is set, every file is sent to the external OCR
+    extraction service (the ``ocr_detection_worker_updated`` ``/extract``
+    endpoint) instead of using native parsers. This routes PDFs, Office docs,
+    images, etc. through the VLM OCR pipeline (dots-mocr).
+
+    Env vars:
+      - ``OCR_EXTRACTION_URL``     full endpoint, e.g. ``http://localhost:8200/extract``
+      - ``OCR_EXTRACTION_FORMAT``  ``markdown`` (default) or ``text``
+      - ``OCR_EXTRACTION_TIMEOUT`` request timeout in seconds (default 300)
+      - ``OCR_FALLBACK_NATIVE``    ``true`` (default) falls back to native parsing
+                                   if the OCR service errors; ``false`` re-raises
+    """
+    url = os.getenv("OCR_EXTRACTION_URL", "").strip()
+    if url:
+        try:
+            return _extract_via_ocr(path, content_type, url)
+        except Exception as exc:
+            if _truthy(os.getenv("OCR_FALLBACK_NATIVE", "true")):
+                log.warning(
+                    "OCR extraction failed for %s (%s); falling back to native parser",
+                    path.name, exc,
+                )
+                return _extract_native(path, content_type)
+            raise RuntimeError(f"OCR extraction failed for {path}: {exc}") from exc
+    return _extract_native(path, content_type)
+
+
+def _extract_via_ocr(path: Path, content_type: str | None, url: str) -> str:
+    """POST the file to the OCR extraction service and return its text."""
+    import httpx
+
+    timeout = float(os.getenv("OCR_EXTRACTION_TIMEOUT", "300"))
+    fmt = os.getenv("OCR_EXTRACTION_FORMAT", "markdown").strip().lower()
+    with path.open("rb") as handle:
+        files = {"file": (path.name, handle, content_type or "application/octet-stream")}
+        response = httpx.post(url, files=files, timeout=timeout)
+    response.raise_for_status()
+    data = response.json()
+    text = data.get("markdown") if fmt == "markdown" else data.get("text")
+    if not text:  # fall back to whichever field is populated
+        text = data.get("text") or data.get("markdown") or ""
+    return normalize_text(text)
+
+
+def _extract_native(path: Path, content_type: str | None = None) -> str:
     suffix = path.suffix.lower()
     if suffix == ".pdf" or content_type == "application/pdf":
         try:

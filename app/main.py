@@ -6,7 +6,9 @@ from pathlib import Path
 import json
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.embeddings import build_embedder
@@ -82,6 +84,29 @@ tool_registry = ToolRegistry(store)
 rag_service = RagService(settings, store, embedder, vector_store, answer_generator, tool_registry)
 
 app = FastAPI(title="Lean OpenWebUI Backend", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Single-file lean web UI. Served at "/" so the whole app runs from one origin.
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+
+@app.get("/", include_in_schema=False)
+async def serve_ui() -> FileResponse:
+    index = FRONTEND_DIR / "index.html"
+    if not index.exists():
+        raise HTTPException(status_code=404, detail="UI not built")
+    return FileResponse(index)
+
+
+FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 ANSWER_OPTION_FIELDS = [
     "top_k",

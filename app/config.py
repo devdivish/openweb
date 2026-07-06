@@ -54,6 +54,15 @@ class Settings:
     full_context_max_chars: int = field(default_factory=lambda: _int_env("FULL_CONTEXT_MAX_CHARS", 24000))
     system_prompt: str = field(default_factory=lambda: os.getenv("SYSTEM_PROMPT", DEFAULT_SYSTEM_PROMPT))
     rag_template: str = field(default_factory=lambda: os.getenv("RAG_TEMPLATE", DEFAULT_RAG_TEMPLATE))
+    # External OCR extraction service (ocr_detection_worker_updated /extract).
+    # When set, every uploaded file is extracted via this endpoint instead of
+    # native pypdf/docx2txt parsing.
+    ocr_extraction_url: str = field(default_factory=lambda: os.getenv("OCR_EXTRACTION_URL", ""))
+    ocr_extraction_format: str = field(default_factory=lambda: os.getenv("OCR_EXTRACTION_FORMAT", "markdown"))
+    ocr_extraction_timeout: float = field(default_factory=lambda: _float_env("OCR_EXTRACTION_TIMEOUT", 300.0))
+    ocr_fallback_native: bool = field(
+        default_factory=lambda: (os.getenv("OCR_FALLBACK_NATIVE", "true").strip().lower() in {"1", "true", "yes", "on"})
+    )
 
     @property
     def uploads_dir(self) -> Path:

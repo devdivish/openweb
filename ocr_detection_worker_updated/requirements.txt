@@ -1,0 +1,35 @@
+# Worker runtime
+redis>=5.0.0
+minio>=7.2.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.1
+aiofiles>=23.2.1
+
+# HTTP extraction service (extract_service.py) — optional, only needed to run
+# the /extract endpoint that external backends call.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+requests>=2.31.0
+
+# OCR_Pipeline_2.0 core
+pyyaml>=6.0.1
+httpx>=0.27.0
+Pillow>=10.2.0
+pymupdf>=1.24.0
+
+# Document extractors
+python-docx>=1.1.0
+python-pptx>=0.6.23
+openpyxl>=3.1.2
+#xlrd>=2.0.1
+pandas>=2.2.0
+charset-normalizer>=3.3.2
+
+# Image helpers
+numpy>=1.26.0
+opencv-python-headless>=4.9.0.80
+#scikit-image>=0.22.0
+
+# Optional for better RTF extraction; without it the code falls back to LibreOffice.
+# striprtf>=0.0.27
